@@ -1,0 +1,85 @@
+<!DOCTYPE>
+<html lang="de">
+
+<head>
+	<meta charset="utf-8"/>
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>File Uploader!</title>
+	<link href="css/bootstrap.min.css" rel="stylesheet">
+	<link rel="icon" type="image/ico" href="icon/icon.ico">
+</head>
+<script>
+	//Includes jQuery for Electron and Node.js
+	window.$ = window.jQuery = require('jquery');
+</script>
+<script type="text/javascript">
+window.onload = function() {
+		//gets the relevant DOM elements
+        var fileInput = document.getElementById('fileInput');
+        var fileDisplayArea = document.getElementById('displayArea');
+		
+        fileInput.addEventListener('change', function(e) {
+			//gets the first file which was choosen
+            var file = fileInput.files[0];
+			//defines the type of the file
+            var textType = /html.*/;
+			
+			//file has to match the type which was defined before
+            if (file.type.match(textType)) {
+				//gets the FileReader and reads out the file
+                var reader = new FileReader();
+				//ISO-8859-1 is the encoding of the file -> to read properly German texts
+				reader.readAsText(file, 'ISO-8859-1');
+				
+				//if ready with loading
+                reader.onload = function(e) {
+					//getting the text of the file, save it, display it and forward the process to the paragraphHandler
+					var rawText = reader.result;
+					saveRawText(rawText);
+					//showText(fileDisplayArea);
+					document.getElementById("submit").submit();
+                } 
+            } else {
+				//Catches the case of a wrong file type
+				fileDisplayArea.style.display = "inline";
+                fileDisplayArea.innerText = "Oops! Da ist etwas schiefgelaufen. Der Zeitplan sollte eine HTML Datei sein!";
+            }
+        });		
+}
+
+//shows the text out of the sessionStorage 'rawText'
+function showText(area) {
+	area.innerHTML = sessionStorage.getItem('rawText');
+}
+
+//saves the rawText in the sessionStorage by rawText
+function saveRawText(rawText) {
+	sessionStorage.setItem('rawText',rawText);
+}
+
+function clickedButton() {
+	document.getElementById("fileInput").click();
+}
+</script>
+<body id="body">
+	<div class="page-header">
+        <h1>Bitte die Teilnehmerliste einlesen!</h1>
+    </div>
+    <div class="well">
+		<input class="btn btn-info" type="button" onClick="clickedButton()" value="Datei hochladen">
+    </div>
+
+	<input style="display: none;" id="fileInput" type="file" class="file">
+	
+	<form id="submit" action="ParagraphHandler.html">
+		<!--<input type="submit" name="button" value="ok"/>-->
+	</form>
+<!-- note for debugging: remove the "hidden" -->
+<pre hidden id="displayArea"></pre>
+
+<!--<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>-->
+<script src="js/jquery-3.1.1.js"></script>
+<script src="js/bootstrap.min.js"></script>
+</body>
+</html>

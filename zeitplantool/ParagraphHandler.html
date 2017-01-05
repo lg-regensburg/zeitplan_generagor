@@ -1,0 +1,113 @@
+<!DOCTYPE>
+<html>
+<head>
+	<title>Paragraph handler!</title>
+	<link rel="icon" type="image/ico" href="icon/icon.ico">
+</head>
+<!--<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>-->
+<script src="js/jquery-3.1.1.js"></script>
+<script>
+	//Includes jQuery for Electron and Node.js
+	window.$ = window.jQuery = require('jquery');
+</script>
+<script type="text/javascript">
+window.onload = function() {
+	//recieves the rawText from the sessionStorage
+	var raw = getRawText();
+	
+	//saves the raw text so it will be displayed in a first step
+	saveParagraphText(raw);
+	
+	//we need to display the text once, so the html will be created, so the tags can be found by JQuery
+	//required to call!
+	showText();
+
+	//finds the paragraphes with the class "ev1"
+	var $html = $('p.ev1').clone().text();
+	
+	//after finding the paragraphes, deletes the content of the page
+	document.getElementById('displayArea').innerHTML = "";
+	
+	//puts in the new content on the page
+	$('pre').prepend($html);
+
+	//copies the content of the page 
+	var paragraphs = document.getElementById('displayArea').innerHTML;
+	
+	//saves the text which we had copied
+	saveParagraphText(paragraphs);
+	
+	//slices the text, so we can put the paragraph (1st line, 2nd line) Object in the array.
+	var text = sessionStorage.getItem('paragraphText');
+	var array = [];
+	var startSliceP = 0;
+	var endSliceP = 0;
+	var middleSliceLine = 0;
+	var patternTimeLength = 5;
+	while (text != "") {
+
+		//returns the end of the first time pattern ("hh:mm") which can be found in the text
+		//this represents the end of the current paragraph
+		endSliceP = text.search(/([01]\d|2[0-3]):[0-5]\d/)+patternTimeLength;
+		
+		//returns the String of the current paragraph (includes the first and second line)
+		//copies the paragraph in a local variable
+		var storageOneParagraph = text.slice(startSliceP, endSliceP);
+		
+		//gets the breakpoint of the paragraph by searching for the 'Datum'.
+		middleSliceLine = storageOneParagraph.search('Datum');
+		
+		//gets apart the first and second line
+		var storageFirstLine = storageOneParagraph.slice(startSliceP, middleSliceLine-1);
+		var storageSecondLine = storageOneParagraph.slice(middleSliceLine);
+		
+		//pushes the solutions of slicing in a first structure of the paragraph
+		//StrucParagraph is defined below
+		array.push(new StrucParagraph(storageFirstLine, storageSecondLine));
+		
+		//updates the text by slicing apart the already used text (paragraph)
+		text = text.slice(endSliceP);
+	}
+	
+	//saves the paragraphes as JSON in the sessionStorage
+	var arrayJSON = JSON.stringify(array);
+	saveParagraphText(arrayJSON);
+	
+	//displays the paragraphs as JSON
+	//showText();
+	
+	//auto-submit: Forwarding to the Cleaner.html
+	document.getElementById("submit").submit();
+}
+
+//constructor for an strucParagraph
+function StrucParagraph(firstLine, secondLine) {
+	this.firstLine = firstLine; //String
+	this.secondLine = secondLine; //String
+}
+
+//puts text in the HTML below "<pre id="displayArea"><pre>"
+function showText() {
+    var area = document.getElementById('displayArea');
+	area.innerHTML = sessionStorage.getItem('paragraphText');
+}
+
+//saves the paragraphes should be executed before showing the text
+function saveParagraphText(paragraphText) {
+	sessionStorage.setItem('paragraphText',paragraphText);
+}
+
+//returns the rawText from the File Uploader before
+function getRawText() {
+	return sessionStorage.getItem('rawText');
+}
+</script>
+<body id="body">
+	<form id="submit" action="Cleaner.html">
+		<!--<input type="submit" name="button" value="weiter"/>-->
+	</form>
+<!-- note for debugging: remove the "hidden" -->
+<pre hidden id="displayArea"><pre>
+</form>
+</body>
+</html>

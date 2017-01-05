@@ -1,0 +1,21 @@
+{
+  "name": "zeitplan",
+  "productName": "Zeitplan",
+  "version": "0.1.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron main.js"
+  },
+  "dependencies": {
+    "jquery": "^3.1.1"
+  },
+  "devDependencies": {
+	"electron": "^1.4.3",
+    "electron-packager": "^8.3.0"
+  },
+  "scripts": {
+	"package-mac": "electron-packager . --platform=darwin --icon=icon/icon --prune=true",
+	"package-win": "electron-packager . --platform=win32  --icon=icon/icon --prune=true",
+	"package-linux" : "electron-packager . --platform=linux --icon=icon/icon --prune=true"
+  }
+}

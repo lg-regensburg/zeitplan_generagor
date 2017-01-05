@@ -1,0 +1,407 @@
+<!DOCTYPE>
+<html>
+<head lang="de">
+	<meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Table</title>
+	<link href="css/bootstrap.min.css" rel="stylesheet">
+	<link rel="icon" type="image/ico" href="icon/icon.ico">
+</head>
+<script>
+	//Includes jQuery for Electron and Node.js
+	window.$ = window.jQuery = require('jquery');
+</script>
+<script type="text/javascript">
+window.onload = function() {
+
+	var json = getEventsJSON();
+	var events = JSON.parse(json);
+	
+	//sorting the event objects 1st Order: date, 2nd Order: time, 3rd Order: category
+	events = sortEventsDateAndTimeAndCategoryOrder(events);
+	//displayDebuggingText(events);
+	var pageContent = "";
+	
+	//splits the events in an array 
+	//-> every index of the array return another array of events with the same date
+	var eventsSplitDays = splitEvents(events);
+	
+	//generates the whole pageContent, multiple tables with headlines are possible
+	//one loop creates a headline + table
+	for (var i = 0; i < eventsSplitDays.length; i++) {
+		pageContent = pageContent + '<div class="page-header">';
+	
+		//generate the headline of the table
+		pageContent = pageContent + '<div class="well">' + "<h2>" +
+		"Tagesprogramm für den " + eventsSplitDays[i][0].date + "</h2>" + "</div>" + '</div>';
+		
+		//generate the table itself
+		pageContent = pageContent + "<p>" +	generateTable(eventsSplitDays[i]) + "</p>";
+	}
+		
+	//save that pageContent and display it
+	saveTableHTML(pageContent);
+	showTable();
+}
+
+//just some debugging Text
+//displays the events
+/*function displayDebuggingText(events) {
+	var debuggingText = "";
+	for (var i = 0; i < events.length; i++) {
+		var singleEvent = events[i];
+		
+		//makes some output for debugging
+		debuggingText = debuggingText + "<p>" 
+		+ singleEvent.date + "<br>" 
+		+ singleEvent.time + "<br>" 
+		+ singleEvent.discipline +"<br>"
+		+ singleEvent.category + "</p>";
+	}
+	document.getElementById("displayArea").innerHTML = debuggingText;
+}*/
+
+//the sorting algorithm
+//1st Order = date; 2nd Order = time; 3rd order = category (extra sortKey)
+function sortEventsDateAndTimeAndCategoryOrder(events) {
+	events = events.sort(function (a,b) { 
+	
+		//converts the date and time in a logical integer which we can better compare
+		var helper = a.date.trim().split(".");
+		var helper2 = a.time.trim().split(":");
+		var sortKeyA = helper[2] + helper[1] + helper[0] + helper2[0] + helper2[1];
+		//*1000 + getSortKeyTableHead(a.category); 
+		//*1000 to get enough place for the category
+		//getSortKeyTableHead(category) contains a logic for sorting the categories in detail -> produces an integer with tree digits
+		var sortKeyAnum = parseInt(sortKeyA)*1000 + getSortKeyTableHead(a.category);
+		
+		helper = b.date.trim().split(".");
+		helper2 = b.time.trim().split(":");
+		var sortKeyB = helper[2] + helper[1] + helper[0] + helper2[0] + helper2[1];
+		var sortKeyBnum = parseInt(sortKeyB)*1000 + getSortKeyTableHead(b.category);
+		
+		return sortKeyAnum-sortKeyBnum;
+	});
+	return events;
+}
+
+//creates the basic of the table and triggers the creation of the table head and table body
+//returns that table as HTML-String
+function generateTable(events) {
+	var table = '<table class="table table-hover" border="1">';
+	var tableHead = getTableHead(events); //Its the array of values which are in the headline of the table
+	
+	table = table + generateTableHead(tableHead);
+	table = table + generateTableBody(tableHead, events);
+	
+	table = table + '</table>';
+	
+	return table;
+}
+
+function generateTableBody(tableHead, events) {
+	var tableBody = '';
+	
+	//this one groupes the events to an array which represents those events which will happen at the same time
+	//that means those events have to be written in the same row of the table
+	var groupedEvents = getGroupedEvents(events);
+	
+	//parses these groupedEvents to an array of RowElements, which are easier to handle
+	var rows = parseToRows(groupedEvents);
+	//a row is an object of time and an array of the categories
+
+	//triggers the generation of the table rows as HTML-String
+	for (var i = 0; i < rows.length; i++) {
+		tableBody = tableBody + getTableRow(rows[i], tableHead);
+	}
+
+	return tableBody;
+}
+
+//parses the groupedEvents which represent a table Row to an array of TableRows
+function parseToRows(groupedEvents) {
+	var rows = [];
+	
+	//one loop creates one TableRow object and pushes it to the rows array
+	for (var i = 0; i < groupedEvents.length; i++) {
+		var currentGroup = groupedEvents[i];
+		
+		//an array of cells which are the actual information of the row (discipline+category)
+		var currentCells = [];
+		//the time of the row which is for the row unique
+		var currentTime = currentGroup[0].time;
+		
+		//for all events of the group (-> row), save the category an discipline as cell
+		for (var j = 0; j < currentGroup.length; j++) {
+			var currentEvent = currentGroup[j];
+			currentCell = new Cell(currentEvent.category, currentEvent.discipline);
+			currentCells.push(currentCell);
+		}
+		//this command is for merging the cells of the table row 
+		//so we can cut out unneccessary infomation and do not loose relvant information!
+		currentCells = shortCells(currentCells);
+		//adds the newly generated Row to the rows (-> array)
+		rows.push(new Row(currentTime, currentCells));
+	}	
+	return rows;
+}
+
+//merges the cell array
+function shortCells(cells) {
+	var smallCells = [];
+	
+	for (var i = 0; i < cells.length; i++) {
+		var hasToBeAdded = true;
+		for (var j = 0; j < smallCells.length; j++) {
+			//if there are two cells only differnt by discipline, then add their content
+			if (cells[i].category == smallCells[j].category) {
+				hasToBeAdded = false;
+				smallCells[j].content = smallCells[j].content + "<br>" + cells[i].content;
+			}
+		}
+		//if the cell is unique (no need to merge something) push just hand it over to the new array
+		if (hasToBeAdded) {
+			smallCells.push(cells[i]);
+		}
+	}
+	return smallCells;
+}
+
+//constructor for a Row
+function Row(time, cells) {
+	this.time = time; //String
+	this.cells = cells; //Array of Cell
+}
+//constructor for a cell
+function Cell(category, content) {
+	this.category = category; //String
+	this.content = content; //String
+}
+
+//Parses a single Row to an HTML String representing that Row
+function getTableRow (row, tableHead) {
+	//initializies the row
+	var tableRow = "<tr>";
+	//adds the time to the start of the row
+	tableRow = tableRow + "<td>" + row.time + "</td>";
+	
+	//var i = 1, because the time is already set
+	var currentCategory = "";
+	//fills the table cells according the table head (so the right discipline stands in the right column)
+	for (var i = 1; i < tableHead.length; i++) {
+		currentCategory = tableHead[i];
+		tableRow = tableRow + "<td>";
+		//getTableCellContent can be an empty String which means that there is no tournatment for this category!
+		tableRow = tableRow + getTableCellContent(row.cells, currentCategory);
+		tableRow = tableRow + "</td>";
+	}
+
+	//finishes the row
+	tableRow = tableRow + "</tr>";
+	
+	return tableRow;
+}
+
+//Checks whether ind the currentCategory (column) is a discipline (content) aviable and returns it.
+//The return value can be empty
+function getTableCellContent(cells, currentCategory) {
+	var content = '';
+	for (var i = 0; i < cells.length; i++) {
+		if (cells[i].category == currentCategory) {
+			content = content + cells[i].content;
+		}
+	}
+	return content;
+}
+
+//returns the events grouped if they are at same time
+function getGroupedEvents(events) {
+	var splittedEvents = [];
+	splittedEvents[0] = [];
+	var index = 0;
+	
+	var currentTime = events[0].time;
+	
+	for (var i = 0; i<events.length; i++) {
+		if (currentTime == events[i].time) {
+			splittedEvents[index].push(events[i]);
+		} else {
+			index = index + 1;
+			splittedEvents[index] = [];
+			splittedEvents[index].push(events[i]);
+			currentTime = events[i].time;
+		}
+	}
+		
+	return splittedEvents;
+}
+//returns the HTML form of the TableHead, the data form is provided by getTableHead()
+function generateTableHead (tableHead) {
+	//parses the TableHead array to a HTML string which can be added to the table
+	var txt = '<tr class="info">';
+	for(var i = 0; i<tableHead.length; i++) {
+		txt = txt + "<th>" + tableHead[i] + "</th>";
+	}
+	txt = txt + "</tr>";
+	return txt;
+}
+
+//returns the data form of the tableHead, the HTML form is provided by generateTableHead()
+function getTableHead(events) {
+	//generate the head of the table
+	var tableHead = [];
+	//def. "Zeit" has always to be there
+	tableHead.push('Zeit');
+	//get every event
+	for (var i = 0; i < events.length; i++) {
+	
+		var token = events[i].category;
+		//check if the single category is already in the tableHead
+		var canBeAdded = true;
+		for (var k = 0; k < tableHead.length; k++) {
+			if(token == tableHead[k]) {
+				canBeAdded=false;
+			}
+		}
+		if (canBeAdded) {
+			tableHead.push(token);
+		}
+	}
+	
+	
+	//sorting the tableHead, female before male, youth before old
+	tableHead = tableHead.sort(function (a,b) { 
+		//converts the tableHead in a logical integer which we can better compare
+		var sortKeyA = getSortKeyTableHead(a);
+		var sortKeyB = getSortKeyTableHead(b);
+		
+		return sortKeyA-sortKeyB;
+	});
+	
+	return tableHead;
+}
+
+//An algorithm which returns a logical integer for a token (-> a single category)
+function getSortKeyTableHead(token) {
+	//Key for "Zeit" has to stay at the left border...
+	if(token == "Zeit") {
+		return 0;
+	}
+
+	//Keys for the main classes
+	if (token == 'Frauen') {
+		return 200;
+	} else if (token == 'Männer') {
+		return 600;
+	} 	
+	
+	//Keys for the youth
+	if (token.includes('WU')) {
+		var val = 100;
+		//the part after XX contains 2 digits which are the age of the athletes.
+		//this will be added by parseInt(...
+		val = val + parseInt(token.slice(2));
+		return val;
+	} else if (token.includes('MU')) {
+		//the part after XX contains 2 digits which are the age of the athletes.
+		//this will be added by parseInt(...
+		var val = 500;
+		val = val + parseInt(token.slice(2));
+		return val;
+	}
+
+	
+	//Keys for the old generation
+	if (token.includes('W')) {
+		var val = 300;
+		val = val + parseInt(token.slice(1));
+		return val;
+	} else if (token.includes('M')&&(token != 'Männer')) {
+		var val = 700;
+		val = val + parseInt(token.slice(1));
+		return val;
+	}
+
+	//if nothing was suitable for the category, it will be added on the right side of the table
+	//so it has to be at the end of the sorting 
+	return 999;
+}
+
+//Splits the events in days
+//so it has to return an array of grouped events by days
+//solved by using a two-dimensional array
+//requires a sorted events array
+function splitEvents(events) {
+	var returnArray = [];
+	returnArray[0] = [];
+	
+	var indexReturnArray = 0;
+	var currentDate = events[0].date;
+	
+	//if a the current day is the same as the day of the event push it in the current day array (via indexReturnArray)
+	for (var i = 0; i<events.length; i++) {		
+		if (events[i].date == currentDate) {
+			returnArray[indexReturnArray].push(events[i]);
+		} else {
+	//if current day is not the same day, open up a new array with that day as current day	
+			indexReturnArray = indexReturnArray + 1;
+			returnArray[indexReturnArray] = [];
+			returnArray[indexReturnArray].push(events[i]);
+			currentDate = events[i].date;
+		}
+	}
+	return returnArray;
+}
+
+//puts text in the HTML below "<pre id="displayArea"><pre>"
+function showTable() {
+    var area = document.getElementById('displayArea');
+	area.innerHTML = sessionStorage.getItem('table');
+}
+
+//saves the tabel content should be executed before saving the text
+function saveTableHTML(table) {
+	sessionStorage.setItem('table',table);
+}
+
+//returns the events in JSON format from the Cleaner before
+function getEventsJSON() {
+	return sessionStorage.getItem('events');
+}
+
+//creates a local copy of the table as "Zeitplan.html"
+//acts like a download
+function createLocalCopy() {
+	
+	$("input").css("display", "none");
+	//$("input").remove();
+	//var text = sessionStorage.getItem('table');
+	
+	var text = document.getElementsByTagName("HTML")[0].outerHTML;
+	var name = "Zeitplan.html";
+	var type = /html.*/;
+	
+	var a = document.getElementById("a");
+	var file = new Blob([text], {type: type});
+	a.href = URL.createObjectURL(file);
+	a.download = name;
+	a.click();
+	
+	$("input").css("display", "inline");
+}
+</script>
+<body id="body">
+
+    <div class="well">
+		<a style="display: none;" href="" id="a"></a>
+		<input class="btn btn-info" href="" type="button" onclick="createLocalCopy()" value="Seite als Datei ausgeben!"/>
+	</div>
+	
+	<div id="displayArea"></div>
+
+<!--<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>-->
+<script src="js/jquery-3.1.1.js"></script>
+<script src="js/bootstrap.min.js"></script>
+</body>
+</html>
