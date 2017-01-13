@@ -10,71 +10,71 @@ window.onload = function() {
 	//gets the paragrahes and turns them to an object again
 	var json = getParagraphesText();
 	var paragraphs = JSON.parse(json);
-	
+
 	//txt is some degubbing text
 	//var txt = "";
-	
+
 	//represents the events database
 	var events = [];
-	
+
 	//values which are meant to cut out if they are stand inside the brackets of the "firstLine"
 	//feel free to customize them
 	var cutOutOfBrackets = ['Gala','Laufnacht','Vorprogramm','Hauptprogramm'];
-	
+
 	// creates one event object out of a paragraph
 	for (var i = 0; i<paragraphs.length; i++) {
-	
+
 		//extracts a copy of the first and second line of the paragraph
 		var firstLine = paragraphs[i].firstLine;
 		var secondLine = paragraphs[i].secondLine;
-	
-	
-	
+
+
+
 		//get the date from the secondLine
 		//checks only the validy of a date, not it's correctness in details!
 		//means that special cases like february are not checked
 		var patternDateLength = 10; //date format: dd.mm.yyyy -> length=10
-		var dateIndex = secondLine.search(/(3[01]|[0-2]\d)[.](0\d|1[0-2])[.]20\d\d/);
+		var dateIndex = secondLine.search(/(3[01]|[0-2]\d)\.(0\d|1[0-2])\.20\d\d/);
 		var date = secondLine.slice(dateIndex, dateIndex+patternDateLength);
-		
-		
-		
+
+
+
 		//get the time from the secondLine
 		//time has to be in the format "hh:mm"; 24h format
 		var timeIndex = secondLine.search(/([01]\d|2[0-3]):[0-5]\d/);
 		var time = secondLine.slice(timeIndex);
-		
-		
-		
-		//get the brackets and cut it out of the firstLine 
+
+
+
+		//get the brackets and cut it out of the firstLine
 		//brackets is supposed to be in round brackets, the brackets is not allowed to be contained in the array "cutOutOfBrackets"
 		//after the discipline is cutted out, the cleaned event will be added to discipline
 		var brackets = "";
 		if (firstLine.includes("(")&&firstLine.includes(")")) {
 			var brokenFirstLineBrackets = firstLine.split(" (");
 			var brokenFirstLineBracketsHelper = brokenFirstLineBrackets[1].split(")");
-			
+
 			//now we have:
 			//first part of the first line until the "(" in brokenFirstLineBrackets[0]
 			//second part of the first line starting after the "(" until the ") " in brokenFirstLineBracketsHelper[0]
 			//third part of the first line starting after the ") " in brokenFirstLineBracketsHelper[1]
-			
+
 			//the String which was located inside the brackets
 			brackets = brokenFirstLineBracketsHelper[0];
-			
+
 			//delete the brackets String if not valid, according to the array of not valid Strings
 			for (var j=0; j<cutOutOfBrackets.length; j++) {
 				if (brackets===cutOutOfBrackets[j]) {
 					brackets="";
 				}
 			}
-			
+
 			//put the firstLine together again (without the brackets)
 			firstLine = brokenFirstLineBrackets[0] + brokenFirstLineBracketsHelper[1];
 		}
-	
-	
-	
+
+
+
 		//get the discipline and cut it out of the firstLine and add the brackets if it is existing
 		var brokenFristLineDiscipline = firstLine.split(", ");
 		var brokenFirstLineDisciplineHelper = brokenFristLineDiscipline[1].split(" - ");
@@ -82,25 +82,25 @@ window.onload = function() {
 		//first part of the first line until the ", " in brokenFirstLineDiscipline[0]
 		//second part of the first line starting after the ", " until the " - " in brokenFirstLineDisciplineHelper[0]
 		//third part of the first line starting after the " - " in brokenFirstLineDisciplineHelper[1]
-			
+
 		//putting back everything we wont need right now to the firstLine object
 		firstLine = brokenFirstLineDisciplineHelper[0];
-		
+
 		//putting together the the discipline, in case of a value for brackets it will be added to discipline in brackets again
 		if (brackets=="") {
 			var discipline = brokenFristLineDiscipline[0] + ", " + brokenFirstLineDisciplineHelper[1];
 		} else {
 			var discipline = brokenFristLineDiscipline[0] + " (" + brackets + "), " + brokenFirstLineDisciplineHelper[1];
 		}
-		
+
 		//shorten the dicipline by checking the valid abrieviations
 		discipline = getAbrieviation(discipline);
-		
-		
-		
+
+
+
 		//the gender and category are left in the firstLine
 		var brokenFLGender = firstLine.split(" ");
-		
+
 		//get the gender of the athletes
 		var gender = "";
 		for (var j = 0; j < brokenFLGender.length; j++) {
@@ -112,16 +112,16 @@ window.onload = function() {
 				gender='Männer'
 			}
 		}
-		
+
 		//get the categories of the tournament
 		var category = [];
 		for (var j = 0; j < brokenFLGender.length; j++) {
 			var token = brokenFLGender[j];
-			
+
 			//Main classes
 			if (token == 'Frauen' || token == 'Männer') {
 				category.push(token);
-			}	
+			}
 			//Youth classes
 			var shortGender = "";
 			if (gender == 'Frauen') {
@@ -131,35 +131,35 @@ window.onload = function() {
 			}
 			if (token.charAt(0) == 'U') {
 				category.push(shortGender + token);
-			} 
-			//Older classes 
+			}
+			//Older classes
 			if (token.charAt(0) == 'W' || (token.charAt(0) == 'M' && token != 'Männer')) {
 				category.push(token);
 			}
-			
-		} 
-		
-		
-		
+
+		}
+
+
+
 		//push the cleaned event sturctured in the database object events
 		for (var j = 0; j < category.length; j++) {
 			//collect all evaluated information
-			var singleEvent = new Event (	date, 
-											time, 
+			var singleEvent = new Event (	date,
+											time,
 											category[j],
 											discipline);
-											
+
 			//add the singleEvent to the event array
 			events.push(singleEvent);
-			
+
 /*			//generates debugging text
-			txt = txt + "<p>" 
-			+ singleEvent.date + "<br>" 
-			+ singleEvent.time + "<br>" 
+			txt = txt + "<p>"
+			+ singleEvent.date + "<br>"
+			+ singleEvent.time + "<br>"
 			+ singleEvent.discipline + "<br>"
 			+ singleEvent.category + "</p>";*/
 		}
-		
+
 	}
 
 	//display debugging output
@@ -172,9 +172,9 @@ window.onload = function() {
 
 //those are the aviable abrieviations
 //uses the key-value principle
-var replaceKeys = [	new Replacement("Zeitläufe", "ZEL"), 
-					new Replacement("Hindernis", "Hi"), 
-					new Replacement("Hürden", "H"), 
+var replaceKeys = [	new Replacement("Zeitläufe", "ZEL"),
+					new Replacement("Hindernis", "Hi"),
+					new Replacement("Hürden", "H"),
 					new Replacement(", Finale", ""),
 					new Replacement("Finale", ""),
 					new Replacement("Vorläufe", "VL")];
@@ -188,12 +188,12 @@ function Replacement (key, replacement) {
 //returns the String with abrieviations
 function getAbrieviation(discipline) {
 	var val = discipline;
-	
+
 	//replaces the if found in the replaceKeys object
 	for (var i = 0; i<replaceKeys.length; i++) {
 		val = val.replace(replaceKeys[i].key, replaceKeys[i].replacement);
 	}
-	
+
 	return val;
 }
 
@@ -207,7 +207,7 @@ function Event(date, time, category, discipline) {
 
 //saves the events
 function saveJSON(events) {
-	var json = JSON.stringify(events);			
+	var json = JSON.stringify(events);
 	sessionStorage.setItem('events',json);
 }
 
